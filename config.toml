@@ -1,5 +1,6 @@
-baseurl = "/"
+baseurl = "http://arvatu.me/"
 languageCode = "en-us"
+title="helloWorld"
 theme = "hello-friend"
 paginate = 5
 
