@@ -234,15 +234,24 @@ a.read-more:active {
         stroke: currentColor;
         stroke-width: 8px; }
   .logo__text {
-    font-size: 1.125rem; }
+    font-size: 1.125rem;
+    white-space: nowrap;
+    overflow: hidden;
+    animation: typing 3.5s steps(40, end); }
   .logo__cursor {
     display: inline-block;
     width: 10px;
     height: 1rem;
-    background: #fe5186;
+    background: #5451fe;
     margin-left: 5px;
     border-radius: 1px;
     animation: cursor 1s infinite; }
+
+@keyframes typing {
+  from {
+    width: 0; }
+  to {
+    width: 100%; } }
 
 @keyframes cursor {
   0% {
