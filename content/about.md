@@ -4,8 +4,6 @@ date = "2022-10-30"
 toc=false
 +++
 
-![me](/img/me.JPG)
-
 >Hello, my name is Patrick Arvatu, and go online by Lambels. I am (try to be) a very enthusiastic and hard working: software developer, hockey player and student. I thoroughly enjoy spending time with my friends, playing hockey and programming. Each day I strive in becoming better then before and learning something new.
 
 ## 👨‍🎓 Skills and Accomplishments:
