@@ -5,12 +5,12 @@
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 <meta name="robots" content="noindex, nofollow">
-<title>Building an Order Book in Python: From Broken to Production-Ready | Patrick Arvatu</title>
+<title>Building an Limit Order Book in Python | Patrick Arvatu</title>
 <meta name="keywords" content="python, trading, algorithms, concurrency">
 <meta name="description" content="An iterative walkthrough of building a limit order book, ground up.">
 <meta name="author" content="Patrick Arvatu">
 <link rel="canonical" href="http://localhost:1313/posts/order-book-python/">
-<link crossorigin="anonymous" href="/assets/css/stylesheet.ae8a6b9f5b333920439990528f1dfb0da2bb8e97483c7be3bb44ae506ec36a1f.css" integrity="sha256-roprn1szOSBDmZBSjx37DaK7jpdIPHvju0SuUG7Dah8=" rel="preload stylesheet" as="style">
+<link crossorigin="anonymous" href="/assets/css/stylesheet.dbfa69210cccaee067a69b80e0a8b6446bd65e34973d0b596c3b91f2e7d64cc1.css" integrity="sha256-2/ppIQzMruBnppuA4Ki2RGvWXjSXPQtZbDuR8ufWTME=" rel="preload stylesheet" as="style">
 <link rel="icon" href="http://localhost:1313/favicon.ico">
 <link rel="icon" type="image/png" sizes="16x16" href="http://localhost:1313/favicon-16x16.png">
 <link rel="icon" type="image/png" sizes="32x32" href="http://localhost:1313/favicon-32x32.png">
@@ -83,7 +83,7 @@
   <header class="post-header">
     
     <h1 class="post-title entry-hint-parent">
-      Building an Order Book in Python: From Broken to Production-Ready
+      Building an Limit Order Book in Python
     </h1>
     <div class="post-description">
       An iterative walkthrough of building a limit order book, ground up.
@@ -91,7 +91,11 @@
     <div class="post-meta"><span title='2026-04-22 00:00:00 +0000 UTC'>April 22, 2026</span>&nbsp;·&nbsp;<span>11 min</span>&nbsp;·&nbsp;<span>Patrick Arvatu</span>
 
 </div>
-  </header> <details class="toc" >
+  </header> 
+<figure class="entry-cover">
+        <img loading="eager" src="http://localhost:1313/images/order-book-cover.jpg" alt="Trading terminal showing market data">
+        <figcaption>Photo by Nicholas Cappello on Unsplash</figcaption>
+</figure><details class="toc" >
     <summary accesskey="c" title="(Alt + C)">
         <span class="title">Table of Contents</span>
     </summary>

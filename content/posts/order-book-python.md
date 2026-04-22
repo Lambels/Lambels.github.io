@@ -1,9 +1,14 @@
 ---
-title: "Building an Order Book in Python: From Broken to Production-Ready"
+title: "Building an Limit Order Book in Python"
 date: 2026-04-22
 draft: false
 tags: ["python", "trading", "algorithms", "concurrency"]
 description: "An iterative walkthrough of building a limit order book, ground up."
+cover:
+  image: "/images/order-book-cover.jpg"
+  alt: "Trading terminal showing market data"
+  caption: "Photo by Nicholas Cappello on Unsplash"
+  relative: false
 ---
 
 Order books are the most fundamental data structure in the trading world, and like with most fundamental things, you need to understand them.

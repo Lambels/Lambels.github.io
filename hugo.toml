@@ -7,7 +7,7 @@ theme = "PaperMod"
 
 [params]
   author = "Patrick Arvatu"
-  description = "TU Delft student — quant trading, algorithms, software."
+  description = "TU Delft student — trading, algorithms, software."
   defaultTheme = "dark"
   ShowReadingTime = true
   ShowShareButtons = false
@@ -17,9 +17,14 @@ theme = "PaperMod"
   ShowToc = true
   TocOpen = false
 
+  [params.cover]
+    hidden = false
+    hiddenInList = false
+    hiddenInSingle = false
+
   [params.homeInfoParams]
     Title = "Patrick Arvatu"
-    Content = "TU Delft student interested in quant trading, algorithmic systems, and software engineering. I write about what I build and what I learn."
+    Content = "TU Delft student interested in trading, algorithmic systems, and software engineering. I write about what I build and what I learn."
 
   [[params.socialIcons]]
     name = "github"
@@ -28,6 +33,10 @@ theme = "PaperMod"
   [[params.socialIcons]]
     name = "linkedin"
     url = "https://linkedin.com/in/patrick-arvatu"
+
+  [[params.socialIcons]]
+    name = "email"
+    url = "mailto:patrick.arvatu@yahoo.com"
 
 [menu]
   [[menu.main]]
