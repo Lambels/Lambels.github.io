@@ -1,0 +1,46 @@
+baseURL = "https://lambels.github.io/"
+languageCode = "en-us"
+title = "Patrick Arvatu"
+theme = "PaperMod"
+[pagination]
+  pagerSize = 10
+
+[params]
+  author = "Patrick Arvatu"
+  description = "TU Delft student — quant trading, algorithms, software."
+  defaultTheme = "dark"
+  ShowReadingTime = true
+  ShowShareButtons = false
+  ShowPostNavLinks = true
+  ShowBreadCrumbs = false
+  ShowCodeCopyButtons = true
+  ShowToc = true
+  TocOpen = false
+
+  [params.homeInfoParams]
+    Title = "Patrick Arvatu"
+    Content = "TU Delft student interested in quant trading, algorithmic systems, and software engineering. I write about what I build and what I learn."
+
+  [[params.socialIcons]]
+    name = "github"
+    url = "https://github.com/Lambels"
+
+  [[params.socialIcons]]
+    name = "linkedin"
+    url = "https://linkedin.com/in/patrick-arvatu"
+
+[menu]
+  [[menu.main]]
+    name = "Blog"
+    url = "/posts/"
+    weight = 1
+  [[menu.main]]
+    name = "About"
+    url = "/about/"
+    weight = 2
+
+[markup]
+  [markup.highlight]
+    style = "monokai"
+    lineNos = true
+    codeFences = true

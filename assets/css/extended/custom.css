@@ -1,0 +1,8 @@
+.post-single .post-content,
+.post-single header {
+    max-width: 860px;
+}
+
+.main {
+    max-width: 860px;
+}

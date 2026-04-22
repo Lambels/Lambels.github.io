@@ -1,0 +1,989 @@
+<!DOCTYPE html>
+<html lang="en" dir="auto" data-theme="dark">
+
+<head><script src="/livereload.js?mindelay=10&amp;v=2&amp;port=1313&amp;path=livereload" data-no-instant defer></script><meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+<meta name="robots" content="noindex, nofollow">
+<title>Building an Order Book in Python: From Broken to Production-Ready | Patrick Arvatu</title>
+<meta name="keywords" content="python, trading, algorithms, concurrency">
+<meta name="description" content="An iterative walkthrough of building a limit order book, ground up.">
+<meta name="author" content="Patrick Arvatu">
+<link rel="canonical" href="http://localhost:1313/posts/order-book-python/">
+<link crossorigin="anonymous" href="/assets/css/stylesheet.ae8a6b9f5b333920439990528f1dfb0da2bb8e97483c7be3bb44ae506ec36a1f.css" integrity="sha256-roprn1szOSBDmZBSjx37DaK7jpdIPHvju0SuUG7Dah8=" rel="preload stylesheet" as="style">
+<link rel="icon" href="http://localhost:1313/favicon.ico">
+<link rel="icon" type="image/png" sizes="16x16" href="http://localhost:1313/favicon-16x16.png">
+<link rel="icon" type="image/png" sizes="32x32" href="http://localhost:1313/favicon-32x32.png">
+<link rel="apple-touch-icon" href="http://localhost:1313/apple-touch-icon.png">
+<link rel="mask-icon" href="http://localhost:1313/safari-pinned-tab.svg">
+<meta name="theme-color" content="#2e2e33">
+<meta name="msapplication-TileColor" content="#2e2e33">
+<link rel="alternate" hreflang="en" href="http://localhost:1313/posts/order-book-python/">
+<noscript>
+    <style>
+        #theme-toggle,
+        .top-link {
+            display: none;
+        }
+
+    </style>
+</noscript>
+<script>
+    if (localStorage.getItem("pref-theme") === "light") {
+        document.querySelector("html").dataset.theme = 'light';
+    }
+
+</script>
+</head>
+<body id="top">
+    <header class="header">
+    <nav class="header-nav">
+        <div class="logo">
+            <a href="http://localhost:1313/" accesskey="h" title="Patrick Arvatu (Alt + H)">Patrick Arvatu</a>
+            <div class="logo-switches">
+                <button id="theme-toggle" class="theme-toggle" accesskey="t" title="(Alt + T)" aria-label="Toggle theme">
+                    <svg class="moon" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"
+                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+                    </svg>
+                    <svg class="sun" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"
+                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="5"></circle>
+                        <line x1="12" y1="1" x2="12" y2="3"></line>
+                        <line x1="12" y1="21" x2="12" y2="23"></line>
+                        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+                        <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                        <line x1="1" y1="12" x2="3" y2="12"></line>
+                        <line x1="21" y1="12" x2="23" y2="12"></line>
+                        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+                        <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+                    </svg>
+                </button>
+            </div>
+        </div>
+        <ul id="menu" class="menu">
+            <li>
+                <a href="http://localhost:1313/posts/" title="Blog">
+                    <span>Blog</span>
+                </a>
+            </li>
+            <li>
+                <a href="http://localhost:1313/about/" title="About">
+                    <span>About</span>
+                </a>
+            </li>
+        </ul>
+    </nav>
+</header>
+<main class="main">
+
+<article class="post-single">
+  <header class="post-header">
+    
+    <h1 class="post-title entry-hint-parent">
+      Building an Order Book in Python: From Broken to Production-Ready
+    </h1>
+    <div class="post-description">
+      An iterative walkthrough of building a limit order book, ground up.
+    </div>
+    <div class="post-meta"><span title='2026-04-22 00:00:00 +0000 UTC'>April 22, 2026</span>&nbsp;·&nbsp;<span>11 min</span>&nbsp;·&nbsp;<span>Patrick Arvatu</span>
+
+</div>
+  </header> <details class="toc" >
+    <summary accesskey="c" title="(Alt + C)">
+        <span class="title">Table of Contents</span>
+    </summary>
+
+    <div class="inner"><ul>
+            <li>
+                <a href="#what-is-an-order-book" aria-label="What is an Order Book?">What is an Order Book?</a><ul>
+                    
+            <li>
+                <a href="#some-more-definitions" aria-label="Some more definitions:">Some more definitions:</a></li></ul>
+            </li>
+            <li>
+                <a href="#iteration-1-the-naive-book" aria-label="Iteration 1: The Naive Book">Iteration 1: The Naive Book</a><ul>
+                    
+            <li>
+                <a href="#problems" aria-label="Problems">Problems</a></li></ul>
+            </li>
+            <li>
+                <a href="#iteration-2-orders-as-first-class-objects" aria-label="Iteration 2: Orders as First-Class Objects">Iteration 2: Orders as First-Class Objects</a><ul>
+                    
+            <li>
+                <a href="#what-improved" aria-label="What improved">What improved</a></li>
+            <li>
+                <a href="#whats-still-broken" aria-label="What&rsquo;s still broken">What&rsquo;s still broken</a></li></ul>
+            </li>
+            <li>
+                <a href="#iteration-3-adding-a-lock-naively" aria-label="Iteration 3: Adding a Lock (Naively)">Iteration 3: Adding a Lock (Naively)</a><ul>
+                    
+            <li>
+                <a href="#problems-with-naive-locking" aria-label="Problems with naive locking">Problems with naive locking</a></li></ul>
+            </li>
+            <li>
+                <a href="#iteration-4-final" aria-label="Iteration 4: Final">Iteration 4: Final</a><ul>
+                    
+            <li>
+                <a href="#complexity" aria-label="Complexity">Complexity</a></li></ul>
+            </li>
+            <li>
+                <a href="#whats-still-missing" aria-label="What&rsquo;s Still Missing">What&rsquo;s Still Missing</a></li>
+            <li>
+                <a href="#takeaway" aria-label="Takeaway">Takeaway</a>
+            </li>
+        </ul>
+    </div>
+</details>
+
+  <div class="post-content md-content"><p>Order books are the most fundamental data structure in the trading world, and like with most fundamental things, you need to understand them.</p>
+<p>In this post, I&rsquo;ll build one iteratively, deliberately introducing real bugs along the way, so you can understand <em>why</em> each design decision exists. In the end we will have created a half decent limit order book.</p>
+<p>So let&rsquo;s get into the implementation and learn about order books.</p>
+<hr>
+<h2 id="what-is-an-order-book">What is an Order Book?<a hidden class="anchor" aria-hidden="true" href="#what-is-an-order-book">#</a></h2>
+<p>First let&rsquo;s cover some vocabulary:</p>
+<p>An order book is a real-time record of all outstanding buy and sell orders for an asset. Buy orders (bids) are sorted descending by price, the highest bidder is first. Sell orders (asks) are sorted ascending, the cheapest seller is first.</p>
+<p>When the best bid price meets or crosses the best ask price, a <strong>trade executes</strong> at the meeting point. When multiple ask price levels are crossed we fill the orders based on price order, cheaper asks get filled first. The same logic applies in reverse when ask prices cross the spread and meet bids.</p>
+<h3 id="some-more-definitions">Some more definitions:<a hidden class="anchor" aria-hidden="true" href="#some-more-definitions">#</a></h3>
+<ul>
+<li>The <strong>spread</strong>: the gap which needs to be crossed in order for a <strong>trade</strong> to execute.</li>
+<li>The <strong>aggressor</strong>: the order which crosses the spread to make the <strong>trade</strong> happen, it is the one who pays the spread, can be an ask or bid order.</li>
+<li><strong>Limit</strong> book: this means that our book will support limit orders, limit orders sit at fixed prices and execute at prices:
+<ul>
+<li>Smaller then or equal, for bids.</li>
+<li>Greater then or equal, for asks.</li>
+</ul>
+</li>
+</ul>
+<hr>
+<h2 id="iteration-1-the-naive-book">Iteration 1: The Naive Book<a hidden class="anchor" aria-hidden="true" href="#iteration-1-the-naive-book">#</a></h2>
+<p>Let&rsquo;s start simple. We&rsquo;ll track bids and asks as price -&gt; quantity mappings, and match when prices cross.</p>
+<div class="highlight"><div style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">11
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">12
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">13
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">14
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">15
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">16
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">17
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">18
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">19
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">20
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">21
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">22
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">23
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">24
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">25
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">26
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">27
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">28
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">29
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">30
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">31
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">32
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">33
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">34
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">35
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">36
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">37
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">38
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span><span style="color:#f92672">from</span> sortedcontainers <span style="color:#f92672">import</span> SortedDict
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">class</span> <span style="color:#a6e22e">OrderBook</span>:
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">def</span> <span style="color:#a6e22e">__init__</span>(self):
+</span></span><span style="display:flex;"><span>        self<span style="color:#f92672">.</span>bids <span style="color:#f92672">=</span> SortedDict(<span style="color:#66d9ef">lambda</span> x: <span style="color:#f92672">-</span>x)    <span style="color:#75715e"># highest first</span>
+</span></span><span style="display:flex;"><span>        self<span style="color:#f92672">.</span>asks <span style="color:#f92672">=</span> SortedDict()                <span style="color:#75715e"># lowest first</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">def</span> <span style="color:#a6e22e">add_order</span>(self, side, price, qty):
+</span></span><span style="display:flex;"><span>        book <span style="color:#f92672">=</span> self<span style="color:#f92672">.</span>bids <span style="color:#66d9ef">if</span> side <span style="color:#f92672">==</span> <span style="color:#e6db74">&#34;buy&#34;</span> <span style="color:#66d9ef">else</span> self<span style="color:#f92672">.</span>asks
+</span></span><span style="display:flex;"><span>        book[price] <span style="color:#f92672">=</span> book<span style="color:#f92672">.</span>get(price, <span style="color:#ae81ff">0</span>) <span style="color:#f92672">+</span> qty
+</span></span><span style="display:flex;"><span>        self<span style="color:#f92672">.</span>_match(aggressor_side<span style="color:#f92672">=</span>side)
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">def</span> <span style="color:#a6e22e">cancel_order</span>(self, side, price, qty):
+</span></span><span style="display:flex;"><span>        book <span style="color:#f92672">=</span> self<span style="color:#f92672">.</span>bids <span style="color:#66d9ef">if</span> side <span style="color:#f92672">==</span> <span style="color:#e6db74">&#34;buy&#34;</span> <span style="color:#66d9ef">else</span> self<span style="color:#f92672">.</span>asks
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">if</span> price <span style="color:#f92672">in</span> book:
+</span></span><span style="display:flex;"><span>            book[price] <span style="color:#f92672">-=</span> qty
+</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">if</span> book[price] <span style="color:#f92672">&lt;=</span> <span style="color:#ae81ff">0</span>:
+</span></span><span style="display:flex;"><span>                <span style="color:#66d9ef">del</span> book[price]
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">def</span> <span style="color:#a6e22e">_match</span>(self, aggressor_side):
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">while</span> self<span style="color:#f92672">.</span>bids <span style="color:#f92672">and</span> self<span style="color:#f92672">.</span>asks:
+</span></span><span style="display:flex;"><span>            best_bid <span style="color:#f92672">=</span> next(iter(self<span style="color:#f92672">.</span>bids))
+</span></span><span style="display:flex;"><span>            best_ask <span style="color:#f92672">=</span> next(iter(self<span style="color:#f92672">.</span>asks))
+</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">if</span> best_bid <span style="color:#f92672">&lt;</span> best_ask:             <span style="color:#75715e"># didnt cross the spread.</span>
+</span></span><span style="display:flex;"><span>                <span style="color:#66d9ef">break</span>
+</span></span><span style="display:flex;"><span>            trade_price <span style="color:#f92672">=</span> best_ask <span style="color:#66d9ef">if</span> aggressor_side <span style="color:#f92672">==</span> <span style="color:#e6db74">&#34;buy&#34;</span> <span style="color:#66d9ef">else</span> best_bid <span style="color:#75715e"># choose price based on the side which crossed.</span>
+</span></span><span style="display:flex;"><span>            qty <span style="color:#f92672">=</span> min(self<span style="color:#f92672">.</span>bids[best_bid], self<span style="color:#f92672">.</span>asks[best_ask])             <span style="color:#75715e"># quantity to be traded.</span>
+</span></span><span style="display:flex;"><span>            print(<span style="color:#e6db74">f</span><span style="color:#e6db74">&#34;Trade: </span><span style="color:#e6db74">{</span>qty<span style="color:#e6db74">}</span><span style="color:#e6db74"> @ </span><span style="color:#e6db74">{</span>trade_price<span style="color:#e6db74">}</span><span style="color:#e6db74">&#34;</span>)
+</span></span><span style="display:flex;"><span>            self<span style="color:#f92672">.</span>bids[best_bid] <span style="color:#f92672">-=</span> qty
+</span></span><span style="display:flex;"><span>            self<span style="color:#f92672">.</span>asks[best_ask] <span style="color:#f92672">-=</span> qty
+</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">if</span> self<span style="color:#f92672">.</span>bids[best_bid] <span style="color:#f92672">==</span> <span style="color:#ae81ff">0</span>: <span style="color:#66d9ef">del</span> self<span style="color:#f92672">.</span>bids[best_bid]
+</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">if</span> self<span style="color:#f92672">.</span>asks[best_ask] <span style="color:#f92672">==</span> <span style="color:#ae81ff">0</span>: <span style="color:#66d9ef">del</span> self<span style="color:#f92672">.</span>asks[best_ask]
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="color:#a6e22e">@property</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">def</span> <span style="color:#a6e22e">spread</span>(self):
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">if</span> self<span style="color:#f92672">.</span>bids <span style="color:#f92672">and</span> self<span style="color:#f92672">.</span>asks:
+</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">return</span> next(iter(self<span style="color:#f92672">.</span>asks)) <span style="color:#f92672">-</span> next(iter(self<span style="color:#f92672">.</span>bids)) <span style="color:#75715e"># difference between best ask and bid.</span>
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">return</span> <span style="color:#66d9ef">None</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p>This works for a toy example. But it has serious problems.</p>
+<h3 id="problems">Problems<a hidden class="anchor" aria-hidden="true" href="#problems">#</a></h3>
+<p><strong>1. No order identity.</strong>
+Orders have no IDs. You cannot cancel a specific order, only subtract a quantity from a price level. If three traders all placed 10-unit orders at $100, you have no way to cancel just one of them. <code>cancel_order(side, 100, 10)</code> blindly subtracts 10 from the level, which might partially cancel the wrong order.</p>
+<p><strong>2. Price levels lose structure.</strong>
+Orders at the same price are merged into one number. Real exchanges use <strong>price-time priority</strong> (FIFO): the first order placed at a price level gets filled first. Our book has no concept of time at all. Two orders at $100 are indistinguishable.</p>
+<p><strong>3. No trade records.</strong>
+Trades just print to stdout. There&rsquo;s no record of what executed, at what price, between which parties, or at what time.</p>
+<p><strong>4. No concurrency safety.</strong>
+If two threads call <code>add_order</code> simultaneously, they race on the same dict. Python&rsquo;s GIL protects individual bytecode operations but not compound read-modify-write sequences like <code>book[price] = book.get(price, 0) + qty</code>. Under concurrent load, quantity can be silently lost.</p>
+<hr>
+<h2 id="iteration-2-orders-as-first-class-objects">Iteration 2: Orders as First-Class Objects<a hidden class="anchor" aria-hidden="true" href="#iteration-2-orders-as-first-class-objects">#</a></h2>
+<p>We fix the identity and FIFO problems by introducing <code>Order</code> and <code>Trade</code> dataclasses, and storing each price level as a queue of individual orders.</p>
+<div class="highlight"><div style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">11
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">12
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">13
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">14
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">15
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">16
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">17
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">18
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">19
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">20
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">21
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">22
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">23
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">24
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">25
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">26
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">27
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">28
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">29
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">30
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">31
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">32
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">33
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">34
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">35
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">36
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">37
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">38
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">39
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">40
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">41
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">42
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">43
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">44
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">45
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">46
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">47
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">48
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">49
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">50
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">51
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">52
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">53
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">54
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">55
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">56
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">57
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">58
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">59
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">60
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">61
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">62
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">63
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">64
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">65
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">66
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">67
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">68
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">69
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">70
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">71
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">72
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">73
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">74
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">75
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">76
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">77
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">78
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">79
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">80
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">81
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">82
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">83
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">84
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">85
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">86
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">87
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">88
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">89
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span><span style="color:#f92672">from</span> collections <span style="color:#f92672">import</span> deque
+</span></span><span style="display:flex;"><span><span style="color:#f92672">from</span> dataclasses <span style="color:#f92672">import</span> dataclass
+</span></span><span style="display:flex;"><span><span style="color:#f92672">from</span> sortedcontainers <span style="color:#f92672">import</span> SortedDict
+</span></span><span style="display:flex;"><span><span style="color:#f92672">from</span> typing <span style="color:#f92672">import</span> Optional
+</span></span><span style="display:flex;"><span><span style="color:#f92672">import</span> uuid
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">@dataclass</span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">class</span> <span style="color:#a6e22e">Order</span>:
+</span></span><span style="display:flex;"><span>    id: str
+</span></span><span style="display:flex;"><span>    side: str
+</span></span><span style="display:flex;"><span>    price: float
+</span></span><span style="display:flex;"><span>    qty: float
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">@dataclass</span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">class</span> <span style="color:#a6e22e">Trade</span>:
+</span></span><span style="display:flex;"><span>    buy_order_id: str
+</span></span><span style="display:flex;"><span>    sell_order_id: str
+</span></span><span style="display:flex;"><span>    price: float
+</span></span><span style="display:flex;"><span>    qty: float
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">class</span> <span style="color:#a6e22e">OrderBook</span>:
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">def</span> <span style="color:#a6e22e">__init__</span>(self):
+</span></span><span style="display:flex;"><span>        self<span style="color:#f92672">.</span>bids <span style="color:#f92672">=</span> SortedDict(<span style="color:#66d9ef">lambda</span> x: <span style="color:#f92672">-</span>x)        <span style="color:#75715e"># sorted bids, price to volume</span>
+</span></span><span style="display:flex;"><span>        self<span style="color:#f92672">.</span>asks <span style="color:#f92672">=</span> SortedDict()                    <span style="color:#75715e"># sorted asks, price to volume</span>
+</span></span><span style="display:flex;"><span>        self<span style="color:#f92672">.</span>_bid_levels: dict[float, deque] <span style="color:#f92672">=</span> {}   <span style="color:#75715e"># price to bucket (ordered by time)</span>
+</span></span><span style="display:flex;"><span>        self<span style="color:#f92672">.</span>_ask_levels: dict[float, deque] <span style="color:#f92672">=</span> {}   <span style="color:#75715e"># price to bucket (...)</span>
+</span></span><span style="display:flex;"><span>        self<span style="color:#f92672">.</span>_order_index: dict[str, Order] <span style="color:#f92672">=</span> {}    <span style="color:#75715e"># ID to order</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">def</span> <span style="color:#a6e22e">add_order</span>(self, side: str, price: float, qty: float) <span style="color:#f92672">-&gt;</span> tuple[str, list[Trade]]:
+</span></span><span style="display:flex;"><span>        order <span style="color:#f92672">=</span> Order(id<span style="color:#f92672">=</span>str(uuid<span style="color:#f92672">.</span>uuid4()), side<span style="color:#f92672">=</span>side, price<span style="color:#f92672">=</span>price, qty<span style="color:#f92672">=</span>qty)
+</span></span><span style="display:flex;"><span>        self<span style="color:#f92672">.</span>_insert(order)
+</span></span><span style="display:flex;"><span>        trades <span style="color:#f92672">=</span> self<span style="color:#f92672">.</span>_match(aggressor_side<span style="color:#f92672">=</span>side)
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">return</span> order<span style="color:#f92672">.</span>id, trades
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">def</span> <span style="color:#a6e22e">cancel_order</span>(self, order_id: str) <span style="color:#f92672">-&gt;</span> bool:
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">if</span> order_id <span style="color:#f92672">not</span> <span style="color:#f92672">in</span> self<span style="color:#f92672">.</span>_order_index:
+</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">return</span> <span style="color:#66d9ef">False</span>
+</span></span><span style="display:flex;"><span>        order <span style="color:#f92672">=</span> self<span style="color:#f92672">.</span>_order_index<span style="color:#f92672">.</span>pop(order_id)
+</span></span><span style="display:flex;"><span>        self<span style="color:#f92672">.</span>_remove(order)
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">return</span> <span style="color:#66d9ef">True</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">def</span> <span style="color:#a6e22e">_insert</span>(self, order: Order):
+</span></span><span style="display:flex;"><span>        book, levels <span style="color:#f92672">=</span> (self<span style="color:#f92672">.</span>bids, self<span style="color:#f92672">.</span>_bid_levels) <span style="color:#66d9ef">if</span> order<span style="color:#f92672">.</span>side <span style="color:#f92672">==</span> <span style="color:#e6db74">&#34;buy&#34;</span> \
+</span></span><span style="display:flex;"><span>                       <span style="color:#66d9ef">else</span> (self<span style="color:#f92672">.</span>asks, self<span style="color:#f92672">.</span>_ask_levels)           <span style="color:#75715e"># insert into the respective book</span>
+</span></span><span style="display:flex;"><span>        book[order<span style="color:#f92672">.</span>price] <span style="color:#f92672">=</span> book<span style="color:#f92672">.</span>get(order<span style="color:#f92672">.</span>price, <span style="color:#ae81ff">0</span>) <span style="color:#f92672">+</span> order<span style="color:#f92672">.</span>qty    <span style="color:#75715e"># keep track of total volume at each level</span>
+</span></span><span style="display:flex;"><span>        levels<span style="color:#f92672">.</span>setdefault(order<span style="color:#f92672">.</span>price, deque())<span style="color:#f92672">.</span>append(order)       <span style="color:#75715e"># add the order to the queue for the level</span>
+</span></span><span style="display:flex;"><span>        self<span style="color:#f92672">.</span>_order_index[order<span style="color:#f92672">.</span>id] <span style="color:#f92672">=</span> order                         <span style="color:#75715e"># keep track of id</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">def</span> <span style="color:#a6e22e">_remove</span>(self, order: Order):
+</span></span><span style="display:flex;"><span>        book, levels <span style="color:#f92672">=</span> (self<span style="color:#f92672">.</span>bids, self<span style="color:#f92672">.</span>_bid_levels) <span style="color:#66d9ef">if</span> order<span style="color:#f92672">.</span>side <span style="color:#f92672">==</span> <span style="color:#e6db74">&#34;buy&#34;</span> \
+</span></span><span style="display:flex;"><span>                       <span style="color:#66d9ef">else</span> (self<span style="color:#f92672">.</span>asks, self<span style="color:#f92672">.</span>_ask_levels)
+</span></span><span style="display:flex;"><span>        book[order<span style="color:#f92672">.</span>price] <span style="color:#f92672">-=</span> order<span style="color:#f92672">.</span>qty  <span style="color:#75715e"># remove from volume</span>
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">if</span> book[order<span style="color:#f92672">.</span>price] <span style="color:#f92672">&lt;=</span> <span style="color:#ae81ff">0</span>:      <span style="color:#75715e"># delete the level</span>
+</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">del</span> book[order<span style="color:#f92672">.</span>price]
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">if</span> order<span style="color:#f92672">.</span>price <span style="color:#f92672">in</span> levels:       <span style="color:#75715e"># delete from the level volume</span>
+</span></span><span style="display:flex;"><span>            levels[order<span style="color:#f92672">.</span>price] <span style="color:#f92672">=</span> deque(o <span style="color:#66d9ef">for</span> o <span style="color:#f92672">in</span> levels[order<span style="color:#f92672">.</span>price] <span style="color:#66d9ef">if</span> o<span style="color:#f92672">.</span>id <span style="color:#f92672">!=</span> order<span style="color:#f92672">.</span>id)
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">def</span> <span style="color:#a6e22e">_match</span>(self, aggressor_side: str) <span style="color:#f92672">-&gt;</span> list[Trade]:
+</span></span><span style="display:flex;"><span>        trades <span style="color:#f92672">=</span> []
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">while</span> self<span style="color:#f92672">.</span>bids <span style="color:#f92672">and</span> self<span style="color:#f92672">.</span>asks:
+</span></span><span style="display:flex;"><span>            best_bid <span style="color:#f92672">=</span> next(iter(self<span style="color:#f92672">.</span>bids))
+</span></span><span style="display:flex;"><span>            best_ask <span style="color:#f92672">=</span> next(iter(self<span style="color:#f92672">.</span>asks))
+</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">if</span> best_bid <span style="color:#f92672">&lt;</span> best_ask:     <span style="color:#75715e"># doesnt cross spread.</span>
+</span></span><span style="display:flex;"><span>                <span style="color:#66d9ef">break</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>            trade_price <span style="color:#f92672">=</span> best_ask <span style="color:#66d9ef">if</span> aggressor_side <span style="color:#f92672">==</span> <span style="color:#e6db74">&#34;buy&#34;</span> <span style="color:#66d9ef">else</span> best_bid
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>            bid_order <span style="color:#f92672">=</span> self<span style="color:#f92672">.</span>_bid_levels[best_bid][<span style="color:#ae81ff">0</span>]   <span style="color:#75715e"># select the first bid at the level.</span>
+</span></span><span style="display:flex;"><span>            ask_order <span style="color:#f92672">=</span> self<span style="color:#f92672">.</span>_ask_levels[best_ask][<span style="color:#ae81ff">0</span>]   <span style="color:#75715e"># select the first ask at the level.</span>
+</span></span><span style="display:flex;"><span>            qty <span style="color:#f92672">=</span> min(bid_order<span style="color:#f92672">.</span>qty, ask_order<span style="color:#f92672">.</span>qty)
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>            trades<span style="color:#f92672">.</span>append(Trade(bid_order<span style="color:#f92672">.</span>id, ask_order<span style="color:#f92672">.</span>id, trade_price, qty))
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>            bid_order<span style="color:#f92672">.</span>qty <span style="color:#f92672">-=</span> qty
+</span></span><span style="display:flex;"><span>            ask_order<span style="color:#f92672">.</span>qty <span style="color:#f92672">-=</span> qty
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">if</span> bid_order<span style="color:#f92672">.</span>qty <span style="color:#f92672">==</span> <span style="color:#ae81ff">0</span>:                          <span style="color:#75715e"># bid order empty</span>
+</span></span><span style="display:flex;"><span>                self<span style="color:#f92672">.</span>_bid_levels[best_bid]<span style="color:#f92672">.</span>popleft()        <span style="color:#75715e"># remove it from the queue</span>
+</span></span><span style="display:flex;"><span>                self<span style="color:#f92672">.</span>_order_index<span style="color:#f92672">.</span>pop(bid_order<span style="color:#f92672">.</span>id, <span style="color:#66d9ef">None</span>)   <span style="color:#75715e"># remove it from the index</span>
+</span></span><span style="display:flex;"><span>                <span style="color:#66d9ef">if</span> <span style="color:#f92672">not</span> self<span style="color:#f92672">.</span>_bid_levels[best_bid]:          <span style="color:#75715e"># check whether price level is empty</span>
+</span></span><span style="display:flex;"><span>                    <span style="color:#66d9ef">del</span> self<span style="color:#f92672">.</span>bids[best_bid]                 <span style="color:#75715e"># delete it</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">if</span> ask_order<span style="color:#f92672">.</span>qty <span style="color:#f92672">==</span> <span style="color:#ae81ff">0</span>:                          <span style="color:#75715e"># symmetric</span>
+</span></span><span style="display:flex;"><span>                self<span style="color:#f92672">.</span>_ask_levels[best_ask]<span style="color:#f92672">.</span>popleft()
+</span></span><span style="display:flex;"><span>                self<span style="color:#f92672">.</span>_order_index<span style="color:#f92672">.</span>pop(ask_order<span style="color:#f92672">.</span>id, <span style="color:#66d9ef">None</span>)
+</span></span><span style="display:flex;"><span>                <span style="color:#66d9ef">if</span> <span style="color:#f92672">not</span> self<span style="color:#f92672">.</span>_ask_levels[best_ask]:
+</span></span><span style="display:flex;"><span>                    <span style="color:#66d9ef">del</span> self<span style="color:#f92672">.</span>asks[best_ask]
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">return</span> trades
+</span></span></code></pre></td></tr></table>
+</div>
+</div><h3 id="what-improved">What improved<a hidden class="anchor" aria-hidden="true" href="#what-improved">#</a></h3>
+<p>Each order now has a UUID. Cancellation is exact - you cancel <em>that</em> order, not just a quantity at a level. FIFO is enforced via <code>deque</code>, the first order in is the first order filled. Trades are returned as structured objects, not print statements.</p>
+<h3 id="whats-still-broken">What&rsquo;s still broken<a hidden class="anchor" aria-hidden="true" href="#whats-still-broken">#</a></h3>
+<p>Still no concurrency safety. Every method is a compound read-modify-write. Under concurrent access this book will corrupt silently and won&rsquo;t provide any meaningful FIFO behaviour.</p>
+<hr>
+<h2 id="iteration-3-adding-a-lock-naively">Iteration 3: Adding a Lock (Naively)<a hidden class="anchor" aria-hidden="true" href="#iteration-3-adding-a-lock-naively">#</a></h2>
+<p>The obvious fix: wrap everything in a <code>threading.Lock</code>.</p>
+<div class="highlight"><div style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">11
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">12
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">13
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">14
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">15
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">16
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">17
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">18
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">19
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">20
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">21
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">22
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">23
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">24
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">25
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">26
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">27
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">28
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span><span style="color:#f92672">import</span> threading
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">class</span> <span style="color:#a6e22e">OrderBook</span>:
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">def</span> <span style="color:#a6e22e">__init__</span>(self):
+</span></span><span style="display:flex;"><span>        <span style="color:#75715e"># ... same as above ...</span>
+</span></span><span style="display:flex;"><span>        self<span style="color:#f92672">.</span>_lock <span style="color:#f92672">=</span> threading<span style="color:#f92672">.</span>Lock()
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">def</span> <span style="color:#a6e22e">add_order</span>(self, side: str, price: float, qty: float):
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">with</span> self<span style="color:#f92672">.</span>_lock:
+</span></span><span style="display:flex;"><span>            order <span style="color:#f92672">=</span> Order(id<span style="color:#f92672">=</span>str(uuid<span style="color:#f92672">.</span>uuid4()), side<span style="color:#f92672">=</span>side, price<span style="color:#f92672">=</span>price, qty<span style="color:#f92672">=</span>qty)
+</span></span><span style="display:flex;"><span>            self<span style="color:#f92672">.</span>_insert(order)
+</span></span><span style="display:flex;"><span>            trades <span style="color:#f92672">=</span> self<span style="color:#f92672">.</span>_match()
+</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">return</span> order<span style="color:#f92672">.</span>id, trades
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">def</span> <span style="color:#a6e22e">cancel_order</span>(self, order_id: str) <span style="color:#f92672">-&gt;</span> bool:
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">with</span> self<span style="color:#f92672">.</span>_lock:
+</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">if</span> order_id <span style="color:#f92672">not</span> <span style="color:#f92672">in</span> self<span style="color:#f92672">.</span>_order_index:
+</span></span><span style="display:flex;"><span>                <span style="color:#66d9ef">return</span> <span style="color:#66d9ef">False</span>
+</span></span><span style="display:flex;"><span>            order <span style="color:#f92672">=</span> self<span style="color:#f92672">.</span>_order_index<span style="color:#f92672">.</span>pop(order_id)
+</span></span><span style="display:flex;"><span>            self<span style="color:#f92672">.</span>_remove(order)
+</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">return</span> <span style="color:#66d9ef">True</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="color:#a6e22e">@property</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">def</span> <span style="color:#a6e22e">spread</span>(self) <span style="color:#f92672">-&gt;</span> Optional[float]:
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">with</span> self<span style="color:#f92672">.</span>_lock:
+</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">if</span> self<span style="color:#f92672">.</span>bids <span style="color:#f92672">and</span> self<span style="color:#f92672">.</span>asks:
+</span></span><span style="display:flex;"><span>                <span style="color:#66d9ef">return</span> next(iter(self<span style="color:#f92672">.</span>asks)) <span style="color:#f92672">-</span> next(iter(self<span style="color:#f92672">.</span>bids))
+</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">return</span> <span style="color:#66d9ef">None</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p>This is <strong>correct</strong>, but naively so.</p>
+<h3 id="problems-with-naive-locking">Problems with naive locking<a hidden class="anchor" aria-hidden="true" href="#problems-with-naive-locking">#</a></h3>
+<p><strong>1. Reads block writes.</strong>
+Every call to <code>spread</code>, <code>best_bid</code>, or <code>best_ask</code> acquires the same exclusive lock. In a real system, market data consumers read the books very frequently, it would be a throughput disaster to treat all reads equal to writes.</p>
+<p><strong>2. You can&rsquo;t split the lock.</strong>
+Use one lock for bids, one for asks, sounds smart. But the eventual call to <code>_match()</code> would need both locks simultaneously. This sounds like a deadlock, lets analyse further:</p>
+<p>Imagine the following lock setup:</p>
+<div class="highlight"><div style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-py" data-lang="py"><span style="display:flex;"><span>lock_bids <span style="color:#f92672">=</span> threading<span style="color:#f92672">.</span>Lock()
+</span></span><span style="display:flex;"><span>lock_asks <span style="color:#f92672">=</span> threading<span style="color:#f92672">.</span>Lock()
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p>Now ideally this would release some contention since deleting and looking up orders can be split in an individual lock accesses and we get non serial threads!
+But now consider how a <code>_match()</code> definition would look like:</p>
+<div class="highlight"><div style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">11
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">12
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">13
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-py" data-lang="py"><span style="display:flex;"><span><span style="color:#75715e"># Thread A, buy order arrives</span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">def</span> <span style="color:#a6e22e">add_buy</span>():
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">with</span> lock_bids:          <span style="color:#75715e"># acquires lock_bids</span>
+</span></span><span style="display:flex;"><span>        insert_bid(<span style="color:#f92672">...</span>)
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">with</span> lock_asks:      <span style="color:#75715e"># tries to acquire lock_asks, BLOCKS</span>
+</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">match</span>(<span style="color:#f92672">...</span>)
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># Thread B - sell order arrives at the same time</span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">def</span> <span style="color:#a6e22e">add_sell</span>():
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">with</span> lock_asks:          <span style="color:#75715e"># acquires lock_asks</span>
+</span></span><span style="display:flex;"><span>        insert_ask(<span style="color:#f92672">...</span>)
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">with</span> lock_bids:      <span style="color:#75715e"># tries to acquire lock_bids, BLOCKS</span>
+</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">match</span>(<span style="color:#f92672">...</span>)
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p>This leads to a textbook deadlock. The fix is <strong>lock ordering</strong>, always acquire locks in the same fixed order, never the reverse. This eliminates the circular wait and prevents deadlock, but serialises both threads on the first lock acquisition regardless of side, no better than a single lock.</p>
+<div class="highlight"><div style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">1
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">2
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">3
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">4
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">5
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-py" data-lang="py"><span style="display:flex;"><span><span style="color:#66d9ef">def</span> <span style="color:#a6e22e">add_order</span>(self, side, price, qty):
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">with</span> lock_bids:           <span style="color:#75715e"># always first</span>
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">with</span> lock_asks:       <span style="color:#75715e"># always second</span>
+</span></span><span style="display:flex;"><span>            insert(<span style="color:#f92672">...</span>)
+</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">match</span>(<span style="color:#f92672">...</span>)
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>3. No fairness.</strong>
+<code>threading.Lock</code> offers no ordering guarantees. Under high contention, a thread can be starved indefinitely. For guaranteed ordering, <code>queue.Queue</code> is the practical answer, FIFO by design, and it&rsquo;s how most real order processing pipelines are built anyway.</p>
+<hr>
+<h2 id="iteration-4-final">Iteration 4: Final<a hidden class="anchor" aria-hidden="true" href="#iteration-4-final">#</a></h2>
+<p>Keep the single lock, but be deliberate about it. Public methods hold the lock; private methods assume it is already held.
+This is a common pattern in concurrency design, public methods acquire locks and private atomic methods assume the lock is already held. It keeps the locking boundary explicit and the private methods clean.</p>
+<div class="highlight"><div style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">
+<table style="border-spacing:0;padding:0;margin:0;border:0;"><tr><td style="vertical-align:top;padding:0;margin:0;border:0;">
+<pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">  1
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">  2
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">  3
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">  4
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">  5
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">  6
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">  7
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">  8
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">  9
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 10
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 11
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 12
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 13
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 14
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 15
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 16
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 17
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 18
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 19
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 20
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 21
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 22
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 23
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 24
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 25
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 26
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 27
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 28
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 29
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 30
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 31
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 32
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 33
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 34
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 35
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 36
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 37
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 38
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 39
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 40
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 41
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 42
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 43
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 44
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 45
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 46
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 47
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 48
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 49
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 50
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 51
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 52
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 53
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 54
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 55
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 56
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 57
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 58
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 59
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 60
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 61
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 62
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 63
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 64
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 65
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 66
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 67
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 68
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 69
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 70
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 71
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 72
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 73
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 74
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 75
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 76
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 77
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 78
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 79
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 80
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 81
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 82
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 83
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 84
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 85
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 86
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 87
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 88
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 89
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 90
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 91
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 92
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 93
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 94
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 95
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 96
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 97
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 98
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 99
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">100
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">101
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">102
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">103
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">104
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">105
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">106
+</span></code></pre></td>
+<td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+<pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span><span style="color:#f92672">import</span> threading
+</span></span><span style="display:flex;"><span><span style="color:#f92672">from</span> collections <span style="color:#f92672">import</span> deque
+</span></span><span style="display:flex;"><span><span style="color:#f92672">from</span> dataclasses <span style="color:#f92672">import</span> dataclass
+</span></span><span style="display:flex;"><span><span style="color:#f92672">from</span> sortedcontainers <span style="color:#f92672">import</span> SortedDict
+</span></span><span style="display:flex;"><span><span style="color:#f92672">from</span> typing <span style="color:#f92672">import</span> Optional
+</span></span><span style="display:flex;"><span><span style="color:#f92672">import</span> uuid
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">@dataclass</span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">class</span> <span style="color:#a6e22e">Order</span>:
+</span></span><span style="display:flex;"><span>    id: str
+</span></span><span style="display:flex;"><span>    side: str
+</span></span><span style="display:flex;"><span>    price: float
+</span></span><span style="display:flex;"><span>    qty: float
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">@dataclass</span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">class</span> <span style="color:#a6e22e">Trade</span>:
+</span></span><span style="display:flex;"><span>    buy_order_id: str
+</span></span><span style="display:flex;"><span>    sell_order_id: str
+</span></span><span style="display:flex;"><span>    price: float
+</span></span><span style="display:flex;"><span>    qty: float
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">class</span> <span style="color:#a6e22e">OrderBook</span>:
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">def</span> <span style="color:#a6e22e">__init__</span>(self):
+</span></span><span style="display:flex;"><span>        self<span style="color:#f92672">.</span>bids <span style="color:#f92672">=</span> SortedDict(<span style="color:#66d9ef">lambda</span> x: <span style="color:#f92672">-</span>x)
+</span></span><span style="display:flex;"><span>        self<span style="color:#f92672">.</span>asks <span style="color:#f92672">=</span> SortedDict()
+</span></span><span style="display:flex;"><span>        self<span style="color:#f92672">.</span>_bid_levels: dict[float, deque] <span style="color:#f92672">=</span> {}
+</span></span><span style="display:flex;"><span>        self<span style="color:#f92672">.</span>_ask_levels: dict[float, deque] <span style="color:#f92672">=</span> {}
+</span></span><span style="display:flex;"><span>        self<span style="color:#f92672">.</span>_order_index: dict[str, Order] <span style="color:#f92672">=</span> {}
+</span></span><span style="display:flex;"><span>        self<span style="color:#f92672">.</span>_lock <span style="color:#f92672">=</span> threading<span style="color:#f92672">.</span>Lock()
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">def</span> <span style="color:#a6e22e">add_order</span>(self, side: str, price: float, qty: float) <span style="color:#f92672">-&gt;</span> tuple[str, list[Trade]]:
+</span></span><span style="display:flex;"><span>        order <span style="color:#f92672">=</span> Order(id<span style="color:#f92672">=</span>str(uuid<span style="color:#f92672">.</span>uuid4()), side<span style="color:#f92672">=</span>side, price<span style="color:#f92672">=</span>price, qty<span style="color:#f92672">=</span>qty)
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">with</span> self<span style="color:#f92672">.</span>_lock:
+</span></span><span style="display:flex;"><span>            self<span style="color:#f92672">.</span>_insert(order)
+</span></span><span style="display:flex;"><span>            trades <span style="color:#f92672">=</span> self<span style="color:#f92672">.</span>_match(aggressor_side<span style="color:#f92672">=</span>side)
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">return</span> order<span style="color:#f92672">.</span>id, trades
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">def</span> <span style="color:#a6e22e">cancel_order</span>(self, order_id: str) <span style="color:#f92672">-&gt;</span> bool:
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">with</span> self<span style="color:#f92672">.</span>_lock:
+</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">if</span> order_id <span style="color:#f92672">not</span> <span style="color:#f92672">in</span> self<span style="color:#f92672">.</span>_order_index:
+</span></span><span style="display:flex;"><span>                <span style="color:#66d9ef">return</span> <span style="color:#66d9ef">False</span>
+</span></span><span style="display:flex;"><span>            order <span style="color:#f92672">=</span> self<span style="color:#f92672">.</span>_order_index<span style="color:#f92672">.</span>pop(order_id)
+</span></span><span style="display:flex;"><span>            self<span style="color:#f92672">.</span>_remove(order)
+</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">return</span> <span style="color:#66d9ef">True</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">def</span> <span style="color:#a6e22e">best_bid</span>(self) <span style="color:#f92672">-&gt;</span> Optional[float]:
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">with</span> self<span style="color:#f92672">.</span>_lock:
+</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">return</span> next(iter(self<span style="color:#f92672">.</span>bids), <span style="color:#66d9ef">None</span>)
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">def</span> <span style="color:#a6e22e">best_ask</span>(self) <span style="color:#f92672">-&gt;</span> Optional[float]:
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">with</span> self<span style="color:#f92672">.</span>_lock:
+</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">return</span> next(iter(self<span style="color:#f92672">.</span>asks), <span style="color:#66d9ef">None</span>)
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="color:#a6e22e">@property</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">def</span> <span style="color:#a6e22e">spread</span>(self) <span style="color:#f92672">-&gt;</span> Optional[float]:
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">with</span> self<span style="color:#f92672">.</span>_lock:
+</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">if</span> self<span style="color:#f92672">.</span>bids <span style="color:#f92672">and</span> self<span style="color:#f92672">.</span>asks:
+</span></span><span style="display:flex;"><span>                <span style="color:#66d9ef">return</span> next(iter(self<span style="color:#f92672">.</span>asks)) <span style="color:#f92672">-</span> next(iter(self<span style="color:#f92672">.</span>bids))
+</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">return</span> <span style="color:#66d9ef">None</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">def</span> <span style="color:#a6e22e">_insert</span>(self, order: Order):
+</span></span><span style="display:flex;"><span>        book, levels <span style="color:#f92672">=</span> (self<span style="color:#f92672">.</span>bids, self<span style="color:#f92672">.</span>_bid_levels) <span style="color:#66d9ef">if</span> order<span style="color:#f92672">.</span>side <span style="color:#f92672">==</span> <span style="color:#e6db74">&#34;buy&#34;</span> \
+</span></span><span style="display:flex;"><span>                       <span style="color:#66d9ef">else</span> (self<span style="color:#f92672">.</span>asks, self<span style="color:#f92672">.</span>_ask_levels)
+</span></span><span style="display:flex;"><span>        book[order<span style="color:#f92672">.</span>price] <span style="color:#f92672">=</span> book<span style="color:#f92672">.</span>get(order<span style="color:#f92672">.</span>price, <span style="color:#ae81ff">0</span>) <span style="color:#f92672">+</span> order<span style="color:#f92672">.</span>qty
+</span></span><span style="display:flex;"><span>        levels<span style="color:#f92672">.</span>setdefault(order<span style="color:#f92672">.</span>price, deque())<span style="color:#f92672">.</span>append(order)
+</span></span><span style="display:flex;"><span>        self<span style="color:#f92672">.</span>_order_index[order<span style="color:#f92672">.</span>id] <span style="color:#f92672">=</span> order
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">def</span> <span style="color:#a6e22e">_remove</span>(self, order: Order):
+</span></span><span style="display:flex;"><span>        book, levels <span style="color:#f92672">=</span> (self<span style="color:#f92672">.</span>bids, self<span style="color:#f92672">.</span>_bid_levels) <span style="color:#66d9ef">if</span> order<span style="color:#f92672">.</span>side <span style="color:#f92672">==</span> <span style="color:#e6db74">&#34;buy&#34;</span> \
+</span></span><span style="display:flex;"><span>                       <span style="color:#66d9ef">else</span> (self<span style="color:#f92672">.</span>asks, self<span style="color:#f92672">.</span>_ask_levels)
+</span></span><span style="display:flex;"><span>        book[order<span style="color:#f92672">.</span>price] <span style="color:#f92672">-=</span> order<span style="color:#f92672">.</span>qty
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">if</span> book[order<span style="color:#f92672">.</span>price] <span style="color:#f92672">&lt;=</span> <span style="color:#ae81ff">0</span>:
+</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">del</span> book[order<span style="color:#f92672">.</span>price]
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">if</span> order<span style="color:#f92672">.</span>price <span style="color:#f92672">in</span> levels:
+</span></span><span style="display:flex;"><span>            levels[order<span style="color:#f92672">.</span>price] <span style="color:#f92672">=</span> deque(
+</span></span><span style="display:flex;"><span>                o <span style="color:#66d9ef">for</span> o <span style="color:#f92672">in</span> levels[order<span style="color:#f92672">.</span>price] <span style="color:#66d9ef">if</span> o<span style="color:#f92672">.</span>id <span style="color:#f92672">!=</span> order<span style="color:#f92672">.</span>id
+</span></span><span style="display:flex;"><span>            )
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">def</span> <span style="color:#a6e22e">_match</span>(self, aggressor_side: str) <span style="color:#f92672">-&gt;</span> list[Trade]:
+</span></span><span style="display:flex;"><span>        trades <span style="color:#f92672">=</span> []
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">while</span> self<span style="color:#f92672">.</span>bids <span style="color:#f92672">and</span> self<span style="color:#f92672">.</span>asks:
+</span></span><span style="display:flex;"><span>            best_bid <span style="color:#f92672">=</span> next(iter(self<span style="color:#f92672">.</span>bids))
+</span></span><span style="display:flex;"><span>            best_ask <span style="color:#f92672">=</span> next(iter(self<span style="color:#f92672">.</span>asks))
+</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">if</span> best_bid <span style="color:#f92672">&lt;</span> best_ask:
+</span></span><span style="display:flex;"><span>                <span style="color:#66d9ef">break</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>            trade_price <span style="color:#f92672">=</span> best_ask <span style="color:#66d9ef">if</span> aggressor_side <span style="color:#f92672">==</span> <span style="color:#e6db74">&#34;buy&#34;</span> <span style="color:#66d9ef">else</span> best_bid
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>            bid_order <span style="color:#f92672">=</span> self<span style="color:#f92672">.</span>_bid_levels[best_bid][<span style="color:#ae81ff">0</span>]
+</span></span><span style="display:flex;"><span>            ask_order <span style="color:#f92672">=</span> self<span style="color:#f92672">.</span>_ask_levels[best_ask][<span style="color:#ae81ff">0</span>]
+</span></span><span style="display:flex;"><span>            qty <span style="color:#f92672">=</span> min(bid_order<span style="color:#f92672">.</span>qty, ask_order<span style="color:#f92672">.</span>qty)
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>            trades<span style="color:#f92672">.</span>append(Trade(bid_order<span style="color:#f92672">.</span>id, ask_order<span style="color:#f92672">.</span>id, trade_price, qty))
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>            bid_order<span style="color:#f92672">.</span>qty <span style="color:#f92672">-=</span> qty
+</span></span><span style="display:flex;"><span>            ask_order<span style="color:#f92672">.</span>qty <span style="color:#f92672">-=</span> qty
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">if</span> bid_order<span style="color:#f92672">.</span>qty <span style="color:#f92672">==</span> <span style="color:#ae81ff">0</span>:
+</span></span><span style="display:flex;"><span>                self<span style="color:#f92672">.</span>_order_index<span style="color:#f92672">.</span>pop(bid_order<span style="color:#f92672">.</span>id, <span style="color:#66d9ef">None</span>)
+</span></span><span style="display:flex;"><span>                self<span style="color:#f92672">.</span>_remove(bid_order)
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">if</span> ask_order<span style="color:#f92672">.</span>qty <span style="color:#f92672">==</span> <span style="color:#ae81ff">0</span>:
+</span></span><span style="display:flex;"><span>                self<span style="color:#f92672">.</span>_order_index<span style="color:#f92672">.</span>pop(ask_order<span style="color:#f92672">.</span>id, <span style="color:#66d9ef">None</span>)
+</span></span><span style="display:flex;"><span>                self<span style="color:#f92672">.</span>_remove(ask_order)
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">return</span> trades
+</span></span></code></pre></td></tr></table>
+</div>
+</div><h3 id="complexity">Complexity<a hidden class="anchor" aria-hidden="true" href="#complexity">#</a></h3>
+<table>
+  <thead>
+      <tr>
+          <th>Operation</th>
+          <th>Time</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td><code>add_order</code></td>
+          <td>O(log n) - SortedDict insert</td>
+      </tr>
+      <tr>
+          <td><code>cancel_order</code></td>
+          <td>O(1) lookup + O(k) deque filter</td>
+      </tr>
+      <tr>
+          <td><code>_match</code></td>
+          <td>O(m log n) where m = number of trades</td>
+      </tr>
+      <tr>
+          <td><code>best_bid / best_ask</code></td>
+          <td>O(1)</td>
+      </tr>
+      <tr>
+          <td><code>spread</code></td>
+          <td>O(1)</td>
+      </tr>
+  </tbody>
+</table>
+<p>The <code>_order_index</code> dict gives O(1) cancel lookup, without it you&rsquo;d scan every level to find an order by ID.</p>
+<hr>
+<h2 id="whats-still-missing">What&rsquo;s Still Missing<a hidden class="anchor" aria-hidden="true" href="#whats-still-missing">#</a></h2>
+<p>A production exchange would add:</p>
+<ul>
+<li><strong>Order types</strong> - limit, market, IOC (immediate-or-cancel), FOK (fill-or-kill) - we only support fill.</li>
+<li><strong>Timestamps</strong> - for true price-time priority and audit logs - we use locking order which is unreliable and doesnt reflect Order placement order.</li>
+<li><strong>Persistent trade log</strong> - append-only record of all fills - allows for recovery if crash took place.</li>
+<li><strong>Reader-writer lock</strong> - separate read/write paths for high-frequency market data</li>
+<li><strong>Async support</strong> - swap <code>threading.Lock</code> for <code>asyncio.Lock</code> - this also ensures fair scheduling by the event loop instead of relying on the OS thread scheduler.</li>
+</ul>
+<hr>
+<h2 id="takeaway">Takeaway<a hidden class="anchor" aria-hidden="true" href="#takeaway">#</a></h2>
+<p>Started naive, found the flaws, fixed them one by one. The final version is correct and production-reasonable for a single-process system. The missing pieces above are what separates it from something you&rsquo;d run on a real exchange.</p>
+
+
+  </div>
+
+  <footer class="post-footer">
+    <ul class="post-tags">
+      <li><a href="http://localhost:1313/tags/python/">Python</a></li>
+      <li><a href="http://localhost:1313/tags/trading/">Trading</a></li>
+      <li><a href="http://localhost:1313/tags/algorithms/">Algorithms</a></li>
+      <li><a href="http://localhost:1313/tags/concurrency/">Concurrency</a></li>
+    </ul>
+
+  </footer>
+</article>
+    </main>
+    
+<footer class="footer">
+        <span>&copy; 2026 <a href="http://localhost:1313/">Patrick Arvatu</a></span> · 
+
+    <span>
+        Powered by
+        <a href="https://gohugo.io/" rel="noopener noreferrer" target="_blank">Hugo</a> &
+        <a href="https://github.com/adityatelange/hugo-PaperMod/" rel="noopener" target="_blank">PaperMod</a>
+    </span>
+</footer>
+<a href="#top" id="top-link" class="top-link hidden" aria-label="go to top" title="Go to Top (Alt + G)" accesskey="g">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+        stroke-linecap="round" stroke-linejoin="round" class="feather feather-chevrons-up">
+        <polyline points="17 11 12 6 7 11"></polyline>
+        <polyline points="17 18 12 13 7 18"></polyline>
+    </svg>
+</a>
+
+<script>
+    let menu = document.getElementById('menu');
+    if (menu) {
+        
+        const scrollPosition = localStorage.getItem("menu-scroll-position");
+        if (scrollPosition) {
+            menu.scrollLeft = parseInt(scrollPosition, 10);
+        }
+        
+        menu.onscroll = function () {
+            localStorage.setItem("menu-scroll-position", menu.scrollLeft);
+        }
+    }
+
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+        anchor.addEventListener("click", function (e) {
+            e.preventDefault();
+            var id = this.getAttribute("href").substr(1);
+            if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+                document.querySelector(`[id='${decodeURIComponent(id)}']`).scrollIntoView({
+                    behavior: "smooth"
+                });
+            } else {
+                document.querySelector(`[id='${decodeURIComponent(id)}']`).scrollIntoView();
+            }
+            if (id === "top") {
+                history.replaceState(null, null, " ");
+            } else {
+                history.pushState(null, null, `#${id}`);
+            }
+        });
+    });
+
+</script>
+<script>
+    var toplink = document.getElementById("top-link");
+    window.onscroll = function () {
+        const scrollThreshold = window.innerHeight;
+        if (document.body.scrollTop > scrollThreshold || document.documentElement.scrollTop > scrollThreshold) {
+            toplink.classList.remove("hidden");
+        } else {
+            toplink.classList.add("hidden");
+        }
+    };
+
+</script>
+<script>
+    document.getElementById("theme-toggle").addEventListener("click", () => {
+        const html = document.querySelector("html");
+        if (html.dataset.theme === "dark") {
+            html.dataset.theme = 'light';
+            localStorage.setItem("pref-theme", 'light');
+        } else {
+            html.dataset.theme = 'dark';
+            localStorage.setItem("pref-theme", 'dark');
+        }
+    })
+
+</script>
+<script>
+    document.querySelectorAll('pre > code').forEach((codeblock) => {
+        const container = codeblock.parentNode.parentNode;
+
+        const copybutton = document.createElement('button');
+        copybutton.classList.add('copy-code');
+        copybutton.innerHTML = 'copy';
+
+        function copyingDone() {
+            copybutton.innerHTML = 'copied!';
+            setTimeout(() => {
+                copybutton.innerHTML = 'copy';
+            }, 2000);
+        }
+
+        copybutton.addEventListener('click', (cb) => {
+            if ('clipboard' in navigator) {
+                navigator.clipboard.writeText(codeblock.textContent);
+                copyingDone();
+                return;
+            }
+
+            const range = document.createRange();
+            range.selectNodeContents(codeblock);
+            const selection = window.getSelection();
+            selection.removeAllRanges();
+            selection.addRange(range);
+            try {
+                document.execCommand('copy');
+                copyingDone();
+            } catch (e) { };
+            selection.removeRange(range);
+        });
+
+        if (container.classList.contains("highlight")) {
+            container.appendChild(copybutton);
+        } else if (container.parentNode.firstChild == container) {
+            
+        } else if (codeblock.parentNode.parentNode.parentNode.parentNode.parentNode.nodeName == "TABLE") {
+            
+            codeblock.parentNode.parentNode.parentNode.parentNode.parentNode.appendChild(copybutton);
+        } else {
+            
+            codeblock.parentNode.appendChild(copybutton);
+        }
+    });
+</script>
+</body>
+
+</html>

@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/">
+  <channel>
+    <title>Patrick Arvatu</title>
+    <link>http://localhost:1313/</link>
+    <description>Recent content on Patrick Arvatu</description>
+    <generator>Hugo</generator>
+    <language>en-us</language>
+    <lastBuildDate>Wed, 22 Apr 2026 00:00:00 +0000</lastBuildDate>
+    <atom:link href="http://localhost:1313/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>Building an Order Book in Python: From Broken to Production-Ready</title>
+      <link>http://localhost:1313/posts/order-book-python/</link>
+      <pubDate>Wed, 22 Apr 2026 00:00:00 +0000</pubDate>
+      <guid>http://localhost:1313/posts/order-book-python/</guid>
+      <description>An iterative walkthrough of building a limit order book, ground up.</description>
+    </item>
+    <item>
+      <title>About</title>
+      <link>http://localhost:1313/about/</link>
+      <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
+      <guid>http://localhost:1313/about/</guid>
+      <description>&lt;p&gt;I&amp;rsquo;m Patrick Arvatu, a first-year student at TU Delft interested in quant trading, algorithmic systems, and software engineering.&lt;/p&gt;
+&lt;p&gt;I write about things I build — order books, trading algorithms, competition write-ups — and concepts I find interesting in finance and CS.&lt;/p&gt;
+&lt;p&gt;Currently competing in trading simulations and building toward quant/SWE internships for Summer 2027.&lt;/p&gt;
+&lt;p&gt;Find me on &lt;a href=&#34;https://github.com/Lambels&#34;&gt;GitHub&lt;/a&gt; or &lt;a href=&#34;https://linkedin.com/in/patrick-arvatu&#34;&gt;LinkedIn&lt;/a&gt;.&lt;/p&gt;</description>
+    </item>
+  </channel>
+</rss>

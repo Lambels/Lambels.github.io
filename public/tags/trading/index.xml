@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/">
+  <channel>
+    <title>Trading on Patrick Arvatu</title>
+    <link>http://localhost:1313/tags/trading/</link>
+    <description>Recent content in Trading on Patrick Arvatu</description>
+    <generator>Hugo</generator>
+    <language>en-us</language>
+    <lastBuildDate>Wed, 22 Apr 2026 00:00:00 +0000</lastBuildDate>
+    <atom:link href="http://localhost:1313/tags/trading/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>Building an Order Book in Python: From Broken to Production-Ready</title>
+      <link>http://localhost:1313/posts/order-book-python/</link>
+      <pubDate>Wed, 22 Apr 2026 00:00:00 +0000</pubDate>
+      <guid>http://localhost:1313/posts/order-book-python/</guid>
+      <description>An iterative walkthrough of building a limit order book — starting naive and fixing every real bug along the way.</description>
+    </item>
+  </channel>
+</rss>
