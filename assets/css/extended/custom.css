@@ -17,3 +17,33 @@
     max-height: 180px;
     object-fit: cover;
 }
+
+/* GitHub-style alerts (> [!NOTE] / [!IMPORTANT] / etc.) */
+.gh-alert {
+    border-left: 4px solid var(--gh-alert-color, #888);
+    padding: 0.75rem 1rem;
+    margin: 1rem 0;
+    border-radius: 4px;
+    background: color-mix(in srgb, var(--gh-alert-color, #888) 8%, transparent);
+}
+.gh-alert > p {
+    margin: 0.25rem 0;
+}
+.gh-alert-title {
+    display: flex !important;
+    align-items: center;
+    gap: 0.4rem;
+    font-weight: 600;
+    color: var(--gh-alert-color, #888);
+    text-transform: capitalize;
+    margin-bottom: 0.4rem !important;
+}
+.gh-alert-title svg {
+    fill: currentColor;
+    flex-shrink: 0;
+}
+.gh-alert-note      { --gh-alert-color: #58a6ff; }
+.gh-alert-tip       { --gh-alert-color: #3fb950; }
+.gh-alert-important { --gh-alert-color: #a371f7; }
+.gh-alert-warning   { --gh-alert-color: #d29922; }
+.gh-alert-caution   { --gh-alert-color: #f85149; }
