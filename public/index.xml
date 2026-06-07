@@ -1,30 +1,5 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?>
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/">
-  <channel>
-    <title>Patrick Arvatu</title>
-    <link>http://localhost:1313/</link>
-    <description>Recent content on Patrick Arvatu</description>
-    <generator>Hugo</generator>
-    <language>en-us</language>
-    <lastBuildDate>Wed, 22 Apr 2026 00:00:00 +0000</lastBuildDate>
-    <atom:link href="http://localhost:1313/index.xml" rel="self" type="application/rss+xml" />
-    <item>
-      <title>Building an Limit Order Book in Python</title>
-      <link>http://localhost:1313/posts/order-book-python/</link>
-      <pubDate>Wed, 22 Apr 2026 00:00:00 +0000</pubDate>
-      <guid>http://localhost:1313/posts/order-book-python/</guid>
-      <description>An iterative walkthrough of building a limit order book, ground up.</description>
-    </item>
-    <item>
-      <title>About</title>
-      <link>http://localhost:1313/about/</link>
-      <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
-      <guid>http://localhost:1313/about/</guid>
-      <description>&lt;p&gt;I&amp;rsquo;m Patrick Arvatu, a first-year Computer Science student at TU Delft with a focus on software engineering and sometimes trading.&lt;/p&gt;
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><title>Patrick Arvatu</title><link>https://lambels.github.io/</link><description>Recent content on Patrick Arvatu</description><generator>Hugo</generator><language>en-us</language><lastBuildDate>Sun, 07 Jun 2026 00:00:00 +0000</lastBuildDate><atom:link href="https://lambels.github.io/index.xml" rel="self" type="application/rss+xml"/><item><title>Porting panama to C++: concurrency patterns from a channel</title><link>https://lambels.github.io/posts/cpp-chan/</link><pubDate>Sun, 07 Jun 2026 00:00:00 +0000</pubDate><guid>https://lambels.github.io/posts/cpp-chan/</guid><description>Porting Lambels/chanus (Rust) to C++20: mutex + condvar, the wait-and-signal pattern, spurious wakeups, and graceful close protocol.</description></item><item><title>Building an Limit Order Book in Python</title><link>https://lambels.github.io/posts/order-book-python/</link><pubDate>Wed, 22 Apr 2026 00:00:00 +0000</pubDate><guid>https://lambels.github.io/posts/order-book-python/</guid><description>An iterative walkthrough of building a limit order book, ground up.</description></item><item><title>About</title><link>https://lambels.github.io/about/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://lambels.github.io/about/</guid><description>&lt;p&gt;I&amp;rsquo;m Patrick Arvatu, a first-year Computer Science student at TU Delft with a focus on software engineering and sometimes trading.&lt;/p&gt;
 &lt;p&gt;Most of what I find interesting sits at the intersection of math, markets, and software.
 This means I find great interest in algorithms, concurrency and statistics. I love contributing to open source and building real life projects.&lt;/p&gt;
 &lt;p&gt;This blog is where I write up what I build and what I learn from building it. Posts tend to be technical and iterative: I start with something that works badly, show why it breaks, and fix it.
-The goal is to make the reasoning visible, not just the final code. Hopefully in this process I, together with the reader, gain insight in an interesting topic.&lt;/p&gt;</description>
-    </item>
-  </channel>
-</rss>
+The goal is to make the reasoning visible, not just the final code. Hopefully in this process I, together with the reader, gain insight in an interesting topic.&lt;/p&gt;</description></item></channel></rss>
