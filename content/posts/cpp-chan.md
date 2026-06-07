@@ -4,6 +4,11 @@ date: 2026-06-07
 draft: false
 tags: ["c++", "concurrency", "rust", "channels", "systems"]
 description: "Porting Lambels/chanus (Rust) to C++20: mutex + condvar, the wait-and-signal pattern, spurious wakeups, and graceful close protocol."
+cover:
+  image: "/images/cpp-chan-cover.png"
+  alt: "Flappy Bird-style green pipe sprite"
+  caption: "Pipe sprite from OpenGameArt (CC0, public domain)"
+  relative: false
 ---
 
 I found the crust of rust series from Jon Gjengset to be a priceless tool for learning low level programming paired with concurrency primitives.
