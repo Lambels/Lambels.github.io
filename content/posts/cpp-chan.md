@@ -3,7 +3,7 @@ title: "Porting panama to C++: concurrency patterns from a channel"
 date: 2026-06-07
 draft: false
 tags: ["c++", "concurrency", "rust", "channels", "systems"]
-description: "Porting Lambels/chanus (Rust) to C++20: mutex + condvar, the wait-and-signal pattern, spurious wakeups, and graceful close protocol."
+description: "Porting Jon Gjengsets panama to C++"
 cover:
   image: "/images/cpp-chan-cover.png"
   alt: "Flappy Bird-style green pipe sprite"
